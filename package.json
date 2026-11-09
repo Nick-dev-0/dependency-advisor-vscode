@@ -16,6 +16,10 @@
       {
         "command": "dependency-advisor.helloWorld",
         "title": "Hello World"
+      },
+      {
+        "command": "dependency-advisor.inspectCurrentProject",
+        "title": "Dependency Advisor: Inspect Current Project"
       }
     ]
   },
