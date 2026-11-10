@@ -13,7 +13,7 @@ export function activate(context: vscode.ExtensionContext): void {
     );
 
     const inspectProjectCommand = vscode.commands.registerCommand(
-        'dependency-advisor.inspectCurrentProject', () => {
+        'dependency-advisor.inspectCurrentProject', async () => {
             const workspaceFolders = vscode.workspace.workspaceFolders;
 
             if (!workspaceFolders || workspaceFolders.length === 0) {
@@ -23,6 +23,8 @@ export function activate(context: vscode.ExtensionContext): void {
                 return;
             }
 
+			const pomFiles = await vscode.workspace.findFiles("**/pom.xml");
+			
             outputChannel.clear();
             outputChannel.appendLine('Dependency Advisor - Current Workspace');
             outputChannel.appendLine(`Detected ${workspaceFolders.length} workspace folder(s).`);
@@ -32,6 +34,15 @@ export function activate(context: vscode.ExtensionContext): void {
                 outputChannel.appendLine(`Name: ${folder.name}`);
                 outputChannel.appendLine(`Path: ${folder.uri.fsPath}`);
                 outputChannel.appendLine('');
+            }
+
+            if (pomFiles.length === 0) {
+                outputChannel.appendLine('No pom.xml files found.');
+            } else {
+                outputChannel.appendLine(`Found ${pomFiles.length} pom.xml file(s).`);
+                for (const pomFile of pomFiles) {
+                    outputChannel.appendLine(`POM: ${pomFile.fsPath}`);
+                }
             }
 
             outputChannel.show(true);
