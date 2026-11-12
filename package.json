@@ -13,16 +13,12 @@
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
-      {
-        "command": "dependency-advisor.helloWorld",
-        "title": "Hello World"
-      },
-      {
-        "command": "dependency-advisor.inspectCurrentProject",
-        "title": "Dependency Advisor: Inspect Current Project"
-      }
+        {
+            "command": "dependency-advisor.inspectCurrentProject",
+            "title": "Dependency Advisor: Inspect Current Project"
+        }
     ]
-  },
+},
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",

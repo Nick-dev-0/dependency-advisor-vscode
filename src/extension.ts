@@ -1,20 +1,11 @@
 import * as vscode from 'vscode';
-import { XMLParser } from 'fast-xml-parser';
-import type { MavenDependency } from './models/maven';
-import { isMavenDependency } from './maven/validation';
+import { parseMavenPom } from './maven/parser';
 
 export function activate(context: vscode.ExtensionContext): void {
     console.log('Dependency Advisor is now active.');
 
     const outputChannel = vscode.window.createOutputChannel('Dependency Advisor');
-    const xmlParser = new XMLParser({ processEntities: false, parseTagValue: false });
     context.subscriptions.push(outputChannel);
-
-    const helloWorldCommand = vscode.commands.registerCommand(
-        'dependency-advisor.helloWorld', () => {
-            vscode.window.showInformationMessage('Hello World from Dependency Advisor!');
-        }
-    );
 
     const inspectProjectCommand = vscode.commands.registerCommand(
         'dependency-advisor.inspectCurrentProject', async () => {
@@ -27,8 +18,8 @@ export function activate(context: vscode.ExtensionContext): void {
                 return;
             }
 
-			const pomFiles = await vscode.workspace.findFiles("**/pom.xml");
-			
+            const pomFiles = await vscode.workspace.findFiles('**/pom.xml');
+
             outputChannel.clear();
             outputChannel.appendLine('Dependency Advisor - Current Workspace');
             outputChannel.appendLine(`Detected ${workspaceFolders.length} workspace folder(s).`);
@@ -44,37 +35,25 @@ export function activate(context: vscode.ExtensionContext): void {
                 outputChannel.appendLine('No pom.xml files found.');
             } else {
                 outputChannel.appendLine(`Found ${pomFiles.length} pom.xml file(s).`);
+
                 for (const pomFile of pomFiles) {
                     outputChannel.appendLine(`POM: ${pomFile.fsPath}`);
 
                     const pomContent = await vscode.workspace.fs.readFile(pomFile);
                     const pomText = new TextDecoder('utf-8').decode(pomContent);
-                    const pomObject = xmlParser.parse(pomText);
+                    const mavenProject = parseMavenPom(pomText);
 
-                    const artifactId = pomObject.project.artifactId;
-                    const groupId = pomObject.project.groupId;
-                    const version = pomObject.project.version;
+                    outputChannel.appendLine(`Project artifactId: ${mavenProject.artifactId}`);
+                    outputChannel.appendLine(`Project groupId: ${mavenProject.groupId ?? '(not declared in this POM)'}`);
+                    outputChannel.appendLine(`Project version: ${mavenProject.version ?? '(not declared in this POM)'}`);
 
-                    const rawDependencies: unknown = pomObject.project?.dependencies?.dependency;
-                
-                    const dependencyElements = Array.isArray(rawDependencies)
-                        ? rawDependencies : rawDependencies
-                        ? [rawDependencies] : [];
+                    if (mavenProject.parent) {
+                        outputChannel.appendLine(
+                            `Parent: ${mavenProject.parent.groupId}:${mavenProject.parent.artifactId}:${mavenProject.parent.version}`
+                        );
+                    }
 
-                    const mavenDependencies: MavenDependency[] = dependencyElements
-                        .filter(isMavenDependency)
-                        .map((dependency) => ({
-                            groupId: dependency.groupId,
-                            artifactId: dependency.artifactId,
-                            version: dependency.version,
-                            scope: dependency.scope
-                        }));
-
-                    outputChannel.appendLine(`Project artifactId: ${artifactId}`);
-                    outputChannel.appendLine(`Project groupId: ${groupId}`);
-                    outputChannel.appendLine(`Project version: ${version}`);
-
-                    for (const dependency of mavenDependencies) {
+                    for (const dependency of mavenProject.dependencies) {
                         outputChannel.appendLine(`${dependency.groupId}:${dependency.artifactId}`);
                         outputChannel.appendLine(`Version: ${dependency.version ?? '(not declared here)'}`);
                         outputChannel.appendLine(`Scope: ${dependency.scope ?? 'compile (Maven default)'}`);
@@ -90,7 +69,7 @@ export function activate(context: vscode.ExtensionContext): void {
         }
     );
 
-    context.subscriptions.push(helloWorldCommand, inspectProjectCommand);
+    context.subscriptions.push(inspectProjectCommand);
 }
 
 export function deactivate(): void {}
