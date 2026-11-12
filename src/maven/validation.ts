@@ -1,4 +1,4 @@
-import type { MavenDependency } from '../models/maven';
+import type { MavenDependency, MavenParent } from '../models/maven';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -9,10 +9,19 @@ export function isMavenDependency(value: unknown): value is MavenDependency {
         return false;
     }
 
-    return typeof value.groupId === 'string'
-        && value.groupId.trim().length > 0
-        && typeof value.artifactId === 'string'
-        && value.artifactId.trim().length > 0
+    return typeof value.groupId === 'string' && value.groupId.trim().length > 0
+        && typeof value.artifactId === 'string' && value.artifactId.trim().length > 0
         && (value.version === undefined || typeof value.version === 'string')
         && (value.scope === undefined || typeof value.scope === 'string');
+}
+
+export function isMavenParent(value: unknown): value is MavenParent {
+    if (!isRecord(value)) {
+        return false;
+    }
+
+    return typeof value.groupId === 'string' && value.groupId.trim().length > 0
+        && typeof value.artifactId === 'string' && value.artifactId.trim().length > 0
+        && typeof value.version === 'string' && value.version.trim().length > 0
+        && (value.relativePath === undefined || typeof value.relativePath === 'string');
 }
