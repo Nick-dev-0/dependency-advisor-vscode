@@ -1,71 +1,104 @@
-# dependency-advisor README
+# Dependency Advisor
 
-This is the README for your extension "dependency-advisor". After writing up a brief description, we recommend including the following sections.
+Dependency Advisor is a VS Code extension I'm building to make it easier to inspect and understand the dependencies used in a project.
 
-## Features
+The main goal is to help developers get a better understanding of their project's dependencies, including their versions, compatibility and security information. I'm starting with Maven projects and plan to add support for other package managers as the project develops.
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+## Current Features
 
-For example if there is an image subfolder under your extension project workspace:
+The extension currently supports basic Maven project discovery and POM parsing.
 
-\!\[feature X\]\(images/feature-x.png\)
+1. Detects the workspace folders currently open in VS Code.
+2. Searches the workspace for `pom.xml` files.
+3. Reads and parses Maven POM files.
+4. Extracts project information such as `groupId`, `artifactId` and `version`.
+5. Extracts parent POM information.
+6. Identifies declared dependencies and their versions and scopes.
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+## Current Limitations
 
-## Requirements
+This project is still under development.
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+Maven dependency parsing is currently focused on the information directly declared in a POM. It does not yet resolve effective dependency versions through parent POMs, dependency management, imported BOMs or Maven properties.
 
-## Extension Settings
+The extension currently focuses on Maven. Support for other ecosystems has not been implemented yet.
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+## Technologies
 
-For example:
+The project currently uses:
 
-This extension contributes the following settings:
+1. TypeScript
+2. Node.js
+3. Visual Studio Code Extension API
+4. fast-xml-parser for XML parsing
+5. Mocha and Node.js Assert for testing
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+## Getting Started
 
-## Known Issues
+### Requirements
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+1. Visual Studio Code
+2. Node.js
+3. npm
 
-## Release Notes
+### Clone the repository
 
-Users appreciate release notes as you update your extension.
+```powershell
+git clone https://github.com/Nick-dev-0/dependency-advisor-vscode.git
+cd dependency-advisor-vscode
+```
 
-### 1.0.0
+### Install dependencies
 
-Initial release of ...
+```powershell
+npm install
+```
 
-### 1.0.1
+### Open the project
 
-Fixed issue #.
+```powershell
+code .
+```
 
-### 1.1.0
+Press `F5` in VS Code to start the Extension Development Host.
 
-Added features X, Y, and Z.
+Open a project folder and use the Command Palette with `Ctrl + Shift + P`.
 
----
+Search for:
 
-## Following extension guidelines
+`Dependency Advisor: Inspect Current Project`
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+The extension will inspect the open workspace and display the discovered project information in the Output panel.
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+## Testing
 
-## Working with Markdown
+Run the unit tests with:
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+```powershell
+npm test
+```
 
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+This compiles the TypeScript code, runs ESLint and executes the unit tests.
 
-## For more information
+To run the VS Code extension tests, use:
 
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+```powershell
+npm run test:extension
+```
 
-**Enjoy!**
+## Planned Work
+
+Some of the things I plan to work on next:
+
+1. Resolving dependency versions through Maven parent POMs and dependency management.
+2. Supporting imported BOMs and Maven properties.
+3. Integrating package registry information.
+4. Checking dependencies for known security vulnerabilities.
+5. Providing dependency recommendations based on the current project.
+6. Adding support for other ecosystems such as Gradle, and npm.
+
+## Development
+
+This project is being developed incrementally. I'm focusing on getting the Maven functionality working properly before expanding into other ecosystems.
+
+Suggestions and feedback are welcome.
