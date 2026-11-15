@@ -76,13 +76,17 @@ suite('Maven POM Parser', () => {
             groupId: 'com.openai',
             artifactId: 'openai-java',
             version: '4.94.0',
-            scope: undefined
+            scope: undefined,
+            type: undefined,
+            classifier: undefined
         },
         {
             groupId: 'org.springframework.boot',
             artifactId: 'spring-boot-starter-test',
             version: undefined,
-            scope: 'test'
+            scope: 'test',
+            type: undefined,
+            classifier: undefined
         }
     ]);
 });
@@ -114,7 +118,9 @@ test('extracts a single dependency from the POM', () => {
             groupId: 'com.openai',
             artifactId: 'openai-java',
             version: '4.94.0',
-            scope: undefined
+            scope: undefined,
+            type: undefined,
+            classifier: undefined
         }
     ]);
 });
@@ -134,5 +140,69 @@ test('returns an empty dependency array when the POM has no dependencies', () =>
     assert.deepStrictEqual(project.dependencies, []);
 });
 
+test('extracts managed dependencies separately', () => {
+    const pomText = `
+        <project xmlns="http://maven.apache.org/POM/4.0.0">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>com.example</groupId>
+            <artifactId>sample-app</artifactId>
+            <version>1.0.0</version>
+
+            <dependencyManagement>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.example</groupId>
+                        <artifactId>example-library</artifactId>
+                        <version>2.3.0</version>
+                    </dependency>
+                </dependencies>
+            </dependencyManagement>
+
+            <dependencies>
+                <dependency>
+                    <groupId>com.example</groupId>
+                    <artifactId>example-library</artifactId>
+                </dependency>
+            </dependencies>
+        </project>
+    `;
+
+    const project = parseMavenPom(pomText);
+
+    assert.strictEqual(project.dependencies.length, 1);
+    assert.strictEqual(project.dependencies[0].version, undefined);
+
+    assert.strictEqual(project.managedDependencies.length, 1);
+    assert.strictEqual(project.managedDependencies[0].groupId, 'com.example');
+    assert.strictEqual(project.managedDependencies[0].artifactId, 'example-library');
+    assert.strictEqual(project.managedDependencies[0].version, '2.3.0');
+});
+
+test('preserves dependency type and classifier', () => {
+    const pomText = `
+        <project xmlns="http://maven.apache.org/POM/4.0.0">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>com.example</groupId>
+            <artifactId>sample-app</artifactId>
+            <version>1.0.0</version>
+
+            <dependencies>
+                <dependency>
+                    <groupId>com.example</groupId>
+                    <artifactId>example-library</artifactId>
+                    <version>2.3.0</version>
+                    <type>test-jar</type>
+                    <classifier>tests</classifier>
+                </dependency>
+            </dependencies>
+        </project>
+    `;
+
+    const project = parseMavenPom(pomText);
+
+    assert.strictEqual(project.dependencies.length, 1);
+    assert.strictEqual(project.dependencies[0].type, 'test-jar');
+    assert.strictEqual(project.dependencies[0].classifier, 'tests');
+});
 
 });

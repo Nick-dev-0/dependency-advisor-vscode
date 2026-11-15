@@ -88,5 +88,25 @@ suite('Maven Dependency Validation', () => {
         assert.strictEqual(isMavenDependency([]), false);
     });
 
+    test('rejects a dependency with a numeric type', () => {
+    const dependency = {
+        groupId: 'com.example',
+        artifactId: 'example-library',
+        type: 123
+    };
+
+    assert.strictEqual(isMavenDependency(dependency), false);
+    });
+
+test('rejects a dependency with a numeric classifier', () => {
+    const dependency = {
+        groupId: 'com.example',
+        artifactId: 'example-library',
+        classifier: 123
+    };
+
+    assert.strictEqual(isMavenDependency(dependency), false);
+    });
+    
 });
 
