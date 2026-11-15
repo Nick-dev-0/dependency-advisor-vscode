@@ -12,7 +12,9 @@ export function isMavenDependency(value: unknown): value is MavenDependency {
     return typeof value.groupId === 'string' && value.groupId.trim().length > 0
         && typeof value.artifactId === 'string' && value.artifactId.trim().length > 0
         && (value.version === undefined || typeof value.version === 'string')
-        && (value.scope === undefined || typeof value.scope === 'string');
+        && (value.scope === undefined || typeof value.scope === 'string')
+        && (value.type === undefined || typeof value.type === 'string')
+        && (value.classifier === undefined || typeof value.classifier === 'string');
 }
 
 export function isMavenParent(value: unknown): value is MavenParent {

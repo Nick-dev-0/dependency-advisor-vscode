@@ -1,5 +1,5 @@
 import { XMLParser } from 'fast-xml-parser';
-import type { MavenDependency, MavenParent, MavenProject } from '../models/maven';
+import type { MavenDependency, MavenManagedDependency, MavenParent, MavenProject } from '../models/maven';
 import { isMavenDependency, isMavenParent } from './validation';
 
 const xmlParser = new XMLParser({ processEntities: false, parseTagValue: false });
@@ -18,6 +18,23 @@ export function parseMavenPom(pomText: string): MavenProject {
         parent = project.parent;
     }
 
+    const rawManagedDependencies: unknown = project.dependencyManagement?.dependencies?.dependency;
+    
+    const managedDependencyElements = Array.isArray(rawManagedDependencies)
+    ? rawManagedDependencies : rawManagedDependencies
+    ? [rawManagedDependencies] : [];
+
+    const managedDependencies: MavenManagedDependency[] = managedDependencyElements
+        .filter(isMavenDependency)
+        .map((dependency) => ({
+            groupId: dependency.groupId,
+            artifactId: dependency.artifactId,
+            version: dependency.version,
+            scope: dependency.scope,
+            type: dependency.type,
+            classifier: dependency.classifier
+        }));
+    
     const rawDependencies: unknown = project.dependencies?.dependency;
 
     const dependencyElements = Array.isArray(rawDependencies)
@@ -30,7 +47,9 @@ export function parseMavenPom(pomText: string): MavenProject {
             groupId: dependency.groupId,
             artifactId: dependency.artifactId,
             version: dependency.version,
-            scope: dependency.scope
+            scope: dependency.scope,
+            type: dependency.type,
+            classifier: dependency.classifier
         }));
 
     return {
@@ -38,7 +57,8 @@ export function parseMavenPom(pomText: string): MavenProject {
         groupId: project.groupId,
         artifactId: project.artifactId,
         version: project.version,
-        parent: parent,
-        dependencies: dependencies
+        parent,
+        dependencies,
+        managedDependencies
     };
 }
