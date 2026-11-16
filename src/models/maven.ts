@@ -32,3 +32,8 @@ export interface MavenProject {
     dependencies: MavenDependency[];
     managedDependencies: MavenManagedDependency[];
 }
+
+export interface MavenDependencyVersionSelection {
+    version: string | undefined;
+    source: 'declared' | 'managed' | 'unresolved';
+}
