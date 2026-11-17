@@ -1,4 +1,4 @@
-import type { MavenDependency, MavenManagedDependency } from '../models/maven';
+import type {MavenDependency, MavenManagedDependency, MavenDependencyVersionSelection, MavenDependencyAnalysis} from '../models/maven';
 
 export function findManagedDependency(dependency: MavenDependency, managedDependencies: MavenManagedDependency[]) : MavenManagedDependency | undefined {
     const dependencyType = dependency.type ?? 'jar';
@@ -11,3 +11,34 @@ export function findManagedDependency(dependency: MavenDependency, managedDepend
         && (managedDependency.classifier ?? '') === dependencyClassifier
     );
 }
+
+export function selectDependencyVersion(dependency: MavenDependency, managedDependencies: MavenManagedDependency[]): MavenDependencyVersionSelection {
+    if (dependency.version !== undefined) {
+        return {
+            version: dependency.version,
+            source: 'declared'
+        };
+    }
+
+    const managedDependency = findManagedDependency(dependency, managedDependencies);
+
+    if (managedDependency?.version !== undefined) {
+        return {
+            version: managedDependency.version,
+            source: 'managed'
+        };
+    }
+
+    return {
+        version: undefined,
+        source: 'unresolved'
+    };
+}
+
+export function analyzeMavenDependencies(dependencies: MavenDependency[],managedDependencies: MavenManagedDependency[]): MavenDependencyAnalysis[] {
+    return dependencies.map((dependency) => ({
+        declaredDependency: dependency,
+        versionSelection: selectDependencyVersion(dependency, managedDependencies)
+    }));
+}
+

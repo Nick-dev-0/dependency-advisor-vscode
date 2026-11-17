@@ -37,3 +37,8 @@ export interface MavenDependencyVersionSelection {
     version: string | undefined;
     source: 'declared' | 'managed' | 'unresolved';
 }
+
+export interface MavenDependencyAnalysis {
+    declaredDependency: MavenDependency;
+    versionSelection: MavenDependencyVersionSelection;
+}

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { parseMavenPom } from './maven/parser';
+import { analyzeMavenDependencies } from './maven/dependency-management';
 
 export function activate(context: vscode.ExtensionContext): void {
     console.log('Dependency Advisor is now active.');
@@ -42,6 +43,7 @@ export function activate(context: vscode.ExtensionContext): void {
                     const pomContent = await vscode.workspace.fs.readFile(pomFile);
                     const pomText = new TextDecoder('utf-8').decode(pomContent);
                     const mavenProject = parseMavenPom(pomText);
+                    const analyzedDependencies = analyzeMavenDependencies(mavenProject.dependencies, mavenProject.managedDependencies);
 
                     outputChannel.appendLine(`Project artifactId: ${mavenProject.artifactId}`);
                     outputChannel.appendLine(`Project groupId: ${mavenProject.groupId ?? '(not declared in this POM)'}`);
@@ -53,9 +55,14 @@ export function activate(context: vscode.ExtensionContext): void {
                         );
                     }
 
-                    for (const dependency of mavenProject.dependencies) {
+                    for (const analysis of analyzedDependencies) {
+                        const dependency = analysis.declaredDependency;
+                        const versionSelection = analysis.versionSelection;
+
                         outputChannel.appendLine(`${dependency.groupId}:${dependency.artifactId}`);
-                        outputChannel.appendLine(`Version: ${dependency.version ?? '(not declared here)'}`);
+                        outputChannel.appendLine(`Declared version: ${dependency.version ?? '(not declared)'}`);
+                        outputChannel.appendLine(`Selected version: ${versionSelection.version ?? '(not found in current POM)'}`);
+                        outputChannel.appendLine(`Version source: ${versionSelection.source}`);
                         outputChannel.appendLine(`Scope: ${dependency.scope ?? 'compile (Maven default)'}`);
                     }
                 }
