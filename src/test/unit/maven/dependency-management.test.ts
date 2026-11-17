@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { findManagedDependency } from '../../../maven/dependency-management';
+import { analyzeMavenDependencies, findManagedDependency, selectDependencyVersion } from '../../../maven/dependency-management';
 import type { MavenDependency, MavenManagedDependency } from '../../../models/maven';
 
 suite('Maven Dependency Management', () => {
@@ -140,6 +140,143 @@ test('does not match a dependency with a different artifactId', () => {
     const match = findManagedDependency(dependency, managedDependencies);
 
     assert.deepStrictEqual(match, managedDependencies[0]);
+    });
+
+    test('uses the declared version when one is provided', () => {
+    const dependency: MavenDependency = {
+        groupId: 'com.example',
+        artifactId: 'example-library',
+        version: '4.0.0'
+    };
+
+    const managedDependencies: MavenManagedDependency[] = [
+        {
+            groupId: 'com.example',
+            artifactId: 'example-library',
+            version: '5.0.0'
+        }
+    ];
+
+    const selection = selectDependencyVersion(dependency, managedDependencies);
+
+    assert.deepStrictEqual(selection, {
+        version: '4.0.0',
+        source: 'declared'
+    });
+    });
+    
+    test('uses the managed version when no version is declared', () => {
+    const dependency: MavenDependency = {
+        groupId: 'com.example',
+        artifactId: 'example-library'
+    };
+
+    const managedDependencies: MavenManagedDependency[] = [
+        {
+            groupId: 'com.example',
+            artifactId: 'example-library',
+            version: '5.0.0'
+        }
+    ];
+
+    const selection = selectDependencyVersion(dependency, managedDependencies);
+
+    assert.deepStrictEqual(selection, {
+        version: '5.0.0',
+        source: 'managed'
+    });
+    });
+
+    test('returns unresolved when no matching managed dependency exists', () => {
+    const dependency: MavenDependency = {
+        groupId: 'com.example',
+        artifactId: 'example-library'
+    };
+
+    const selection = selectDependencyVersion(dependency, []);
+
+    assert.deepStrictEqual(selection, {
+        version: undefined,
+        source: 'unresolved'
+    });
+    });
+
+    test('returns unresolved when the managed dependency has no version', () => {
+    const dependency: MavenDependency = {
+        groupId: 'com.example',
+        artifactId: 'example-library'
+    };
+
+    const managedDependencies: MavenManagedDependency[] = [
+        {
+            groupId: 'com.example',
+            artifactId: 'example-library'
+        }
+    ];
+
+    const selection = selectDependencyVersion(dependency, managedDependencies);
+
+    assert.deepStrictEqual(selection, {
+        version: undefined,
+        source: 'unresolved'
+    });
+    });
+    
+    test('enriches declared dependencies with version information', () => {
+    const dependencies: MavenDependency[] = [
+        {
+            groupId: 'com.example',
+            artifactId: 'managed-library'
+        },
+        {
+            groupId: 'com.example',
+            artifactId: 'explicit-library',
+            version: '1.5.0'
+        },
+        {
+            groupId: 'com.example',
+            artifactId: 'unresolved-library'
+        }
+    ];
+
+    const managedDependencies: MavenManagedDependency[] = [
+        {
+            groupId: 'com.example',
+            artifactId: 'managed-library',
+            version: '2.3.0'
+        },
+        {
+            groupId: 'com.example',
+            artifactId: 'explicit-library',
+            version: '3.0.0'
+        }
+    ];
+
+    const analyzedDependencies = analyzeMavenDependencies(dependencies,managedDependencies);
+
+    assert.deepStrictEqual(analyzedDependencies, [
+        {
+            declaredDependency: dependencies[0],
+            versionSelection: {
+                version: '2.3.0',
+                source: 'managed'
+            }
+        },
+        {
+            declaredDependency: dependencies[1],
+            versionSelection: {
+                version: '1.5.0',
+                source: 'declared'
+            }
+        },
+        {
+            declaredDependency: dependencies[2],
+            versionSelection: {
+                version: undefined,
+                source: 'unresolved'
+            }
+        }
+    ]);
     });
 
 });
