@@ -2,7 +2,7 @@ import * as assert from 'assert';
 import { mkdtemp, mkdir, writeFile, rm, chmod } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { findMavenWrapper, findGlobalMaven } from '../../../maven/maven-environment';
+import { findMavenWrapper, findGlobalMaven, findMavenEnvironment } from '../../../maven/maven-environment';
 
 async function withTemporaryDirectory(callback: (directory: string) => Promise<void>): Promise<void> {
     const directory = await mkdtemp(path.join(os.tmpdir(), 'dependency-advisor-'));
@@ -171,4 +171,49 @@ suite('Maven Environment', () => {
         });
     });
 
+    test('prefers the project Maven Wrapper over global Maven', async () => {
+        await withTemporaryDirectory(async (rootDirectory) => {
+            const globalDirectory = path.join(rootDirectory, 'global-maven');
+
+            await mkdir(globalDirectory);
+
+            const wrapperExecutable = await createMavenWrapper(rootDirectory);
+            await createGlobalMaven(globalDirectory);
+
+            const result = await findMavenEnvironment(rootDirectory, rootDirectory, globalDirectory);
+
+            assert.deepStrictEqual(result, {
+                source: 'wrapper',
+                executable: wrapperExecutable
+            });
+        });
+    });
+
+    test('uses global Maven when no project Wrapper exists', async () => {
+        await withTemporaryDirectory(async (rootDirectory) => {
+            const projectDirectory = path.join(rootDirectory, 'project');
+            const globalDirectory = path.join(rootDirectory, 'global-maven');
+
+            await mkdir(projectDirectory);
+            await mkdir(globalDirectory);
+
+            const globalExecutable = await createGlobalMaven(globalDirectory);
+
+            const result = await findMavenEnvironment(projectDirectory, rootDirectory, globalDirectory);
+
+            assert.deepStrictEqual(result, {
+                source: 'global',
+                executable: globalExecutable
+            });
+        });
+    });
+
+    test('returns undefined when neither a Wrapper nor global Maven is available', async () => {
+        await withTemporaryDirectory(async (directory) => {
+            const result = await findMavenEnvironment(directory, directory, directory);
+
+            assert.strictEqual(result, undefined);
+        });
+    });
+    
 });
