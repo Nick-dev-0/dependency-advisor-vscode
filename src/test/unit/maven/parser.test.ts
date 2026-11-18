@@ -21,118 +21,188 @@ suite('Maven POM Parser', () => {
     });
 
     test('reads parent POM details', () => {
-    const pomText = `
-        <project xmlns="http://maven.apache.org/POM/4.0.0">
-            <modelVersion>4.0.0</modelVersion>
-            <parent>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-starter-parent</artifactId>
-                <version>4.1.2</version>
-                <relativePath/>
-            </parent>
-            <artifactId>sample-app</artifactId>
-        </project>
-    `;
+        const pomText = `
+            <project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <parent>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-parent</artifactId>
+                    <version>4.1.2</version>
+                    <relativePath/>
+                </parent>
+                <artifactId>sample-app</artifactId>
+            </project>
+        `;
 
-    const project = parseMavenPom(pomText);
+        const project = parseMavenPom(pomText);
 
-    assert.deepStrictEqual(project.parent, {
-        groupId: 'org.springframework.boot',
-        artifactId: 'spring-boot-starter-parent',
-        version: '4.1.2',
-        relativePath: ''
-    });
+        assert.deepStrictEqual(project.parent, {
+            groupId: 'org.springframework.boot',
+            artifactId: 'spring-boot-starter-parent',
+            version: '4.1.2',
+            relativePath: ''
+        });
     });
 
     test('extracts multiple dependencies from the POM', () => {
-    const pomText = `
-        <project xmlns="http://maven.apache.org/POM/4.0.0">
-            <modelVersion>4.0.0</modelVersion>
-            <groupId>com.example</groupId>
-            <artifactId>sample-app</artifactId>
-            <version>1.0.0</version>
+        const pomText = `
+            <project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>sample-app</artifactId>
+                <version>1.0.0</version>
 
-            <dependencies>
-                <dependency>
-                    <groupId>com.openai</groupId>
-                    <artifactId>openai-java</artifactId>
-                    <version>4.94.0</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-starter-test</artifactId>
-                    <scope>test</scope>
-                </dependency>
-            </dependencies>
-        </project>
-    `;
+                <dependencies>
+                    <dependency>
+                        <groupId>com.openai</groupId>
+                        <artifactId>openai-java</artifactId>
+                        <version>4.94.0</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-starter-test</artifactId>
+                        <scope>test</scope>
+                    </dependency>
+                </dependencies>
+            </project>
+        `;
 
-    const project = parseMavenPom(pomText);
+        const project = parseMavenPom(pomText);
 
-    assert.strictEqual(project.dependencies.length, 2);
+        assert.strictEqual(project.dependencies.length, 2);
 
-    assert.deepStrictEqual(project.dependencies, [
-        {
-            groupId: 'com.openai',
-            artifactId: 'openai-java',
-            version: '4.94.0',
-            scope: undefined
-        },
-        {
-            groupId: 'org.springframework.boot',
-            artifactId: 'spring-boot-starter-test',
-            version: undefined,
-            scope: 'test'
-        }
-    ]);
-});
+        assert.deepStrictEqual(project.dependencies, [
+            {
+                groupId: 'com.openai',
+                artifactId: 'openai-java',
+                version: '4.94.0',
+                scope: undefined,
+                type: undefined,
+                classifier: undefined
+            },
+            {
+                groupId: 'org.springframework.boot',
+                artifactId: 'spring-boot-starter-test',
+                version: undefined,
+                scope: 'test',
+                type: undefined,
+                classifier: undefined
+            }
+        ]);
+    });
 
-test('extracts a single dependency from the POM', () => {
-    const pomText = `
-        <project xmlns="http://maven.apache.org/POM/4.0.0">
-            <modelVersion>4.0.0</modelVersion>
-            <groupId>com.example</groupId>
-            <artifactId>sample-app</artifactId>
-            <version>1.0.0</version>
+    test('extracts a single dependency from the POM', () => {
+        const pomText = `
+            <project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>sample-app</artifactId>
+                <version>1.0.0</version>
 
-            <dependencies>
-                <dependency>
-                    <groupId>com.openai</groupId>
-                    <artifactId>openai-java</artifactId>
-                    <version>4.94.0</version>
-                </dependency>
-            </dependencies>
-        </project>
-    `;
+                <dependencies>
+                    <dependency>
+                        <groupId>com.openai</groupId>
+                        <artifactId>openai-java</artifactId>
+                        <version>4.94.0</version>
+                    </dependency>
+                </dependencies>
+            </project>
+        `;
 
-    const project = parseMavenPom(pomText);
+        const project = parseMavenPom(pomText);
 
-    assert.strictEqual(project.dependencies.length, 1);
+        assert.strictEqual(project.dependencies.length, 1);
 
-    assert.deepStrictEqual(project.dependencies, [
-        {
-            groupId: 'com.openai',
-            artifactId: 'openai-java',
-            version: '4.94.0',
-            scope: undefined
-        }
-    ]);
-});
+        assert.deepStrictEqual(project.dependencies, [
+            {
+                groupId: 'com.openai',
+                artifactId: 'openai-java',
+                version: '4.94.0',
+                scope: undefined,
+                type: undefined,
+                classifier: undefined
+            }
+        ]);
+    });
 
-test('returns an empty dependency array when the POM has no dependencies', () => {
-    const pomText = `
-        <project xmlns="http://maven.apache.org/POM/4.0.0">
-            <modelVersion>4.0.0</modelVersion>
-            <groupId>com.example</groupId>
-            <artifactId>sample-app</artifactId>
-            <version>1.0.0</version>
-        </project>
-    `;
+    test('returns an empty dependency array when the POM has no dependencies', () => {
+        const pomText = `
+            <project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>sample-app</artifactId>
+                <version>1.0.0</version>
+            </project>
+        `;
 
-    const project = parseMavenPom(pomText);
+        const project = parseMavenPom(pomText);
 
-    assert.deepStrictEqual(project.dependencies, []);
-});
+        assert.deepStrictEqual(project.dependencies, []);
+    });
 
+    test('extracts managed dependencies separately', () => {
+        const pomText = `
+            <project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>sample-app</artifactId>
+                <version>1.0.0</version>
+
+                <dependencyManagement>
+                    <dependencies>
+                        <dependency>
+                            <groupId>com.example</groupId>
+                            <artifactId>example-library</artifactId>
+                            <version>2.3.0</version>
+                        </dependency>
+                    </dependencies>
+                </dependencyManagement>
+
+                <dependencies>
+                    <dependency>
+                        <groupId>com.example</groupId>
+                        <artifactId>example-library</artifactId>
+                    </dependency>
+                </dependencies>
+            </project>
+        `;
+
+        const project = parseMavenPom(pomText);
+
+        assert.strictEqual(project.dependencies.length, 1);
+        assert.strictEqual(project.dependencies[0].version, undefined);
+
+        assert.strictEqual(project.managedDependencies.length, 1);
+        assert.strictEqual(project.managedDependencies[0].groupId, 'com.example');
+        assert.strictEqual(project.managedDependencies[0].artifactId, 'example-library');
+        assert.strictEqual(project.managedDependencies[0].version, '2.3.0');
+    });
+
+    test('preserves dependency type and classifier', () => {
+        const pomText = `
+            <project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>sample-app</artifactId>
+                <version>1.0.0</version>
+
+                <dependencies>
+                    <dependency>
+                        <groupId>com.example</groupId>
+                        <artifactId>example-library</artifactId>
+                        <version>2.3.0</version>
+                        <type>test-jar</type>
+                        <classifier>tests</classifier>
+                    </dependency>
+                </dependencies>
+            </project>
+        `;
+
+        const project = parseMavenPom(pomText);
+
+        assert.strictEqual(project.dependencies.length, 1);
+        assert.strictEqual(project.dependencies[0].type, 'test-jar');
+        assert.strictEqual(project.dependencies[0].classifier, 'tests');
+    });
 
 });

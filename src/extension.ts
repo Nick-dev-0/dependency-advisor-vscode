@@ -1,5 +1,9 @@
+
 import * as vscode from 'vscode';
+import * as path from 'node:path';
 import { parseMavenPom } from './maven/parser';
+import { analyzeMavenDependencies } from './maven/dependency-management';
+import { findMavenEnvironment } from './maven/maven-environment';
 
 export function activate(context: vscode.ExtensionContext): void {
     console.log('Dependency Advisor is now active.');
@@ -39,9 +43,32 @@ export function activate(context: vscode.ExtensionContext): void {
                 for (const pomFile of pomFiles) {
                     outputChannel.appendLine(`POM: ${pomFile.fsPath}`);
 
+                    const workspaceFolder = vscode.workspace.getWorkspaceFolder(pomFile);
+
+                    if (!workspaceFolder) {
+                        outputChannel.appendLine('Could not determine the workspace folder for this POM.');
+                        continue;
+                    }
+
+                    const projectDirectory = path.dirname(pomFile.fsPath);
+
+                    const mavenEnvironment = await findMavenEnvironment(projectDirectory, workspaceFolder.uri.fsPath);
+                   
+                    if (mavenEnvironment) {
+                        outputChannel.appendLine('Maven environment:');
+                        outputChannel.appendLine(`Source: ${mavenEnvironment.source}`);
+                        outputChannel.appendLine(`Executable: ${mavenEnvironment.executable}`);
+                    } else {
+                        outputChannel.appendLine('Maven environment: not found.');
+                    }
+
+                    outputChannel.appendLine('');
+
                     const pomContent = await vscode.workspace.fs.readFile(pomFile);
                     const pomText = new TextDecoder('utf-8').decode(pomContent);
                     const mavenProject = parseMavenPom(pomText);
+
+                    const analyzedDependencies = analyzeMavenDependencies(mavenProject.dependencies, mavenProject.managedDependencies);
 
                     outputChannel.appendLine(`Project artifactId: ${mavenProject.artifactId}`);
                     outputChannel.appendLine(`Project groupId: ${mavenProject.groupId ?? '(not declared in this POM)'}`);
@@ -53,11 +80,18 @@ export function activate(context: vscode.ExtensionContext): void {
                         );
                     }
 
-                    for (const dependency of mavenProject.dependencies) {
+                    for (const analysis of analyzedDependencies) {
+                        const dependency = analysis.declaredDependency;
+                        const versionSelection = analysis.versionSelection;
+
                         outputChannel.appendLine(`${dependency.groupId}:${dependency.artifactId}`);
-                        outputChannel.appendLine(`Version: ${dependency.version ?? '(not declared here)'}`);
+                        outputChannel.appendLine(`Declared version: ${dependency.version ?? '(not declared)'}`);
+                        outputChannel.appendLine(`Selected version: ${versionSelection.version ?? '(not found in current POM)'}`);
+                        outputChannel.appendLine(`Version source: ${versionSelection.source}`);
                         outputChannel.appendLine(`Scope: ${dependency.scope ?? 'compile (Maven default)'}`);
                     }
+
+                    outputChannel.appendLine('');
                 }
             }
 
