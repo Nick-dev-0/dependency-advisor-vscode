@@ -1,4 +1,4 @@
-import { stat } from 'node:fs/promises';
+import { access, constants, stat } from 'node:fs/promises';
 import * as path from 'node:path';
 
 export interface MavenEnvironment {
@@ -10,6 +10,24 @@ export interface MavenEnvironment {
 async function isFile(filePath: string): Promise<boolean> {
     try {
         return (await stat(filePath)).isFile();
+    } catch {
+        return false;
+    }
+}
+
+async function isExecutableFile(filePath: string): Promise<boolean> {
+    try {
+        const fileStats = await stat(filePath);
+
+        if (!fileStats.isFile()) {
+            return false;
+        }
+
+        if (process.platform !== 'win32') {
+            await access(filePath, constants.X_OK);
+        }
+
+        return true;
     } catch {
         return false;
     }
@@ -52,6 +70,38 @@ export async function findMavenWrapper(projectDirectory: string, workspaceRoot: 
         }
 
         currentDirectory = parentDirectory;
+    }
+
+    return undefined;
+}
+
+export async function findGlobalMaven(searchPath: string | undefined = process.env.PATH): Promise<MavenEnvironment | undefined> {
+    if (!searchPath) {
+        return undefined;
+    }
+
+    const directories = searchPath.split(path.delimiter);
+
+    const executableNames = process.platform === 'win32'
+        ? (process.env.PATHEXT || '.COM;.EXE;.BAT;.CMD').split(';').map((extension) => `mvn${extension.toLowerCase()}`) : ['mvn'];
+
+    for (const directoryEntry of directories) {
+        const directory = directoryEntry.trim().replace(/^"(.*)"$/, '$1');
+
+        if (!directory) {
+            continue;
+        }
+
+        for (const executableName of executableNames) {
+            const executable = path.join(directory, executableName);
+
+            if (await isExecutableFile(executable)) {
+                return {
+                    source: 'global',
+                    executable
+                };
+            }
+        }
     }
 
     return undefined;
