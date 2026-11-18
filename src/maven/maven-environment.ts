@@ -106,3 +106,13 @@ export async function findGlobalMaven(searchPath: string | undefined = process.e
 
     return undefined;
 }
+
+export async function findMavenEnvironment(projectDirectory: string, workspaceRoot: string, searchPath: string | undefined = process.env.PATH): Promise<MavenEnvironment | undefined> {
+    const mavenWrapper = await findMavenWrapper(projectDirectory, workspaceRoot);
+
+    if (mavenWrapper) {
+        return mavenWrapper;
+    }
+
+    return findGlobalMaven(searchPath);
+}

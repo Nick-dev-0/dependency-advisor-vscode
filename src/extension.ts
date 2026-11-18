@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { parseMavenPom } from './maven/parser';
 import { analyzeMavenDependencies } from './maven/dependency-management';
-import { findMavenWrapper } from './maven/maven-environment';
+import { findMavenEnvironment } from './maven/maven-environment';
 
 export function activate(context: vscode.ExtensionContext): void {
     console.log('Dependency Advisor is now active.');
@@ -52,15 +52,14 @@ export function activate(context: vscode.ExtensionContext): void {
 
                     const projectDirectory = path.dirname(pomFile.fsPath);
 
-                    const mavenEnvironment = await findMavenWrapper(projectDirectory, workspaceFolder.uri.fsPath);
-
+                    const mavenEnvironment = await findMavenEnvironment(projectDirectory, workspaceFolder.uri.fsPath);
+                   
                     if (mavenEnvironment) {
                         outputChannel.appendLine('Maven environment:');
                         outputChannel.appendLine(`Source: ${mavenEnvironment.source}`);
                         outputChannel.appendLine(`Executable: ${mavenEnvironment.executable}`);
                     } else {
-                        outputChannel.appendLine('Maven Wrapper: not found.');
-                        outputChannel.appendLine('Global Maven detection: not yet implemented.');
+                        outputChannel.appendLine('Maven environment: not found.');
                     }
 
                     outputChannel.appendLine('');
