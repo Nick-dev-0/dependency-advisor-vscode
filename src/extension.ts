@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { parseMavenPom } from './maven/parser';
 import { analyzeMavenDependencies } from './maven/dependency-management';
 import { findMavenEnvironment } from './maven/maven-environment';
+import { MavenExecutionError, runMavenVersion } from './maven/maven-runner';
 
 export function activate(context: vscode.ExtensionContext): void {
     console.log('Dependency Advisor is now active.');
@@ -40,6 +41,8 @@ export function activate(context: vscode.ExtensionContext): void {
             } else {
                 outputChannel.appendLine(`Found ${pomFiles.length} pom.xml file(s).`);
 
+                const mavenVersionChecks = new Map<string, Promise<{ stdout: string; stderr: string } | undefined>>();
+
                 for (const pomFile of pomFiles) {
                     outputChannel.appendLine(`POM: ${pomFile.fsPath}`);
 
@@ -53,11 +56,76 @@ export function activate(context: vscode.ExtensionContext): void {
                     const projectDirectory = path.dirname(pomFile.fsPath);
 
                     const mavenEnvironment = await findMavenEnvironment(projectDirectory, workspaceFolder.uri.fsPath);
-                   
+
                     if (mavenEnvironment) {
                         outputChannel.appendLine('Maven environment:');
                         outputChannel.appendLine(`Source: ${mavenEnvironment.source}`);
                         outputChannel.appendLine(`Executable: ${mavenEnvironment.executable}`);
+
+                        let versionCheck = mavenVersionChecks.get(mavenEnvironment.executable);
+
+                        if (!versionCheck) {
+                            versionCheck = (async () => {
+                                const approval = await vscode.window.showWarningMessage(
+                                    `Dependency Advisor wants to execute Maven to check its version.\n\nExecutable: ${mavenEnvironment.executable}\n\nA Maven Wrapper may download its Maven distribution if it is not already installed. Only continue if you trust this project.`,
+                                    { modal: true },
+                                    'Run Maven',
+                                    'Skip'
+                                );
+
+                                if (approval !== 'Run Maven') {
+                                    return undefined;
+                                }
+
+                                return runMavenVersion(mavenEnvironment, { cwd: projectDirectory });
+                            })();
+
+                            mavenVersionChecks.set(mavenEnvironment.executable, versionCheck);
+                        }
+
+                        try {
+                            const result = await versionCheck;
+
+                            if (result) {
+                                outputChannel.appendLine('Maven execution: successful');
+
+                                if (result.stdout.trim()) {
+                                    outputChannel.appendLine(result.stdout.trimEnd());
+                                }
+
+                                if (result.stderr.trim()) {
+                                    outputChannel.appendLine('Maven diagnostics:');
+                                    outputChannel.appendLine(result.stderr.trimEnd());
+                                }
+                            } else {
+                                outputChannel.appendLine('Maven execution: skipped by user.');
+                            }
+                        } catch (error: unknown) {
+                            outputChannel.appendLine('Maven execution: failed.');
+
+                            if (error instanceof MavenExecutionError) {
+                                outputChannel.appendLine(`Error: ${error.message}`);
+                                outputChannel.appendLine(`Exit code: ${error.exitCode ?? '(not available)'}`);
+
+                                if (error.timedOut) {
+                                    outputChannel.appendLine('Reason: Maven execution timed out.');
+                                }
+
+                                if (error.stdout.trim()) {
+                                    outputChannel.appendLine('Output before failure:');
+                                    outputChannel.appendLine(error.stdout.trimEnd());
+                                }
+
+                                if (error.stderr.trim()) {
+                                    outputChannel.appendLine('Diagnostic output:');
+                                    outputChannel.appendLine(error.stderr.trimEnd());
+                                }
+                            } else {
+                                outputChannel.appendLine(
+                                    `Unexpected error: ${error instanceof Error ? error.message : String(error)}`
+                                );
+                            }
+                        }
                     } else {
                         outputChannel.appendLine('Maven environment: not found.');
                     }
@@ -68,7 +136,10 @@ export function activate(context: vscode.ExtensionContext): void {
                     const pomText = new TextDecoder('utf-8').decode(pomContent);
                     const mavenProject = parseMavenPom(pomText);
 
-                    const analyzedDependencies = analyzeMavenDependencies(mavenProject.dependencies, mavenProject.managedDependencies);
+                    const analyzedDependencies = analyzeMavenDependencies(
+                        mavenProject.dependencies,
+                        mavenProject.managedDependencies
+                    );
 
                     outputChannel.appendLine(`Project artifactId: ${mavenProject.artifactId}`);
                     outputChannel.appendLine(`Project groupId: ${mavenProject.groupId ?? '(not declared in this POM)'}`);

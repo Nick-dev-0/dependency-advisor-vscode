@@ -49,7 +49,7 @@ export async function findMavenWrapper(projectDirectory: string, workspaceRoot: 
         const executable = path.join(currentDirectory, wrapperScript);
         const propertiesFile = path.join(currentDirectory, '.mvn', 'wrapper', 'maven-wrapper.properties');
 
-        const wrapperExists = await isFile(executable);
+        const wrapperExists = await isExecutableFile(executable);
         const propertiesExist = await isFile(propertiesFile);
 
         if (wrapperExists && propertiesExist) {
