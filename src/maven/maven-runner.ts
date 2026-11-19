@@ -31,18 +31,29 @@ export class MavenExecutionError extends Error {
 const DEFAULT_TIMEOUT_MS = 10_000;
 const MAX_BUFFER_BYTES = 1024 * 1024;
 
-export function runMavenVersion(environment: MavenEnvironment, options: MavenExecutionOptions = {}): Promise<MavenExecutionResult> {
+export function runMavenCommand(environment: MavenEnvironment, mavenArguments: readonly string[], options: MavenExecutionOptions = {}): Promise<MavenExecutionResult> {
     return new Promise((resolve, reject) => {
         const isWindows = process.platform === 'win32';
 
-        if (isWindows && environment.executable.includes('%')) {
-            reject(new MavenExecutionError('Maven executable paths containing "%" are not supported by the Windows runner.', '', '', null, false));
+        if (isWindows && [environment.executable, ...mavenArguments].some((value) => /[%"\r\n]/.test(value))) {
+            reject(new MavenExecutionError(
+                'Maven executable paths and arguments cannot contain "%", quotation marks, or newline characters on Windows.',
+                '',
+                '',
+                null,
+                false
+            ));
             return;
         }
 
         const command = isWindows ? process.env.ComSpec || 'cmd.exe' : environment.executable;
 
-        const args = isWindows ? ['/d', '/v:off', '/s', '/c', `""${environment.executable}" -version"`] : ['-version'];
+        const windowsCommand = [
+            `"${environment.executable}"`,
+            ...mavenArguments.map((argument) => `"${argument}"`)
+        ].join(' ');
+
+        const args = isWindows ? ['/d', '/v:off', '/s', '/c', `"${windowsCommand}"`] : [...mavenArguments];
 
         execFile(command, args, {
             cwd: options.cwd,
@@ -63,7 +74,11 @@ export function runMavenVersion(environment: MavenEnvironment, options: MavenExe
                 return;
             }
 
-            resolve({stdout, stderr});
+            resolve({ stdout, stderr });
         });
     });
+}
+
+export function runMavenVersion(environment: MavenEnvironment, options: MavenExecutionOptions = {}): Promise<MavenExecutionResult> {
+    return runMavenCommand(environment, ['-version'], options);
 }
