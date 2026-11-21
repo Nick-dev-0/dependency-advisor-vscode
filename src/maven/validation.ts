@@ -1,4 +1,4 @@
-import type { MavenDependency, MavenParent } from '../models/maven';
+import type { MavenDependency, MavenDependencyTreeNode, MavenParent } from '../models/maven';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -15,6 +15,22 @@ export function isMavenDependency(value: unknown): value is MavenDependency {
         && (value.scope === undefined || typeof value.scope === 'string')
         && (value.type === undefined || typeof value.type === 'string')
         && (value.classifier === undefined || typeof value.classifier === 'string');
+}
+
+export function isMavenDependencyTreeNode(value: unknown): value is MavenDependencyTreeNode {
+    if (!isRecord(value) || !isMavenDependency(value)) {
+        return false;
+    }
+
+    if (value.optional !== undefined && typeof value.optional !== 'string') {
+        return false;
+    }
+
+    if (value.children === undefined) {
+        return true;
+    }
+
+    return Array.isArray(value.children) && value.children.every(isMavenDependencyTreeNode);
 }
 
 export function isMavenParent(value: unknown): value is MavenParent {

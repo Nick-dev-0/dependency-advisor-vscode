@@ -42,3 +42,8 @@ export interface MavenDependencyAnalysis {
     declaredDependency: MavenDependency;
     versionSelection: MavenDependencyVersionSelection;
 }
+
+export interface MavenDependencyTreeNode extends MavenDependency {
+    optional?: string;
+    children?: MavenDependencyTreeNode[];
+}
