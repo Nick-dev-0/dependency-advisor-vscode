@@ -5,7 +5,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { suite, test } from 'mocha';
 import type { MavenEnvironment } from '../../../maven/maven-environment';
-import { MavenExecutionError, runMavenVersion } from '../../../maven/maven-runner';
+import { MavenExecutionError, runMavenCommand, runMavenVersion } from '../../../maven/maven-runner';
 
 interface FakeMavenOptions {
     exitCode?: number;
@@ -23,7 +23,8 @@ async function createFakeMaven(options: FakeMavenOptions = {}): Promise<{ direct
             'echo Apache Maven 3.9.16',
             'echo Arguments: %*',
             'echo Fake Maven diagnostic 1>&2',
-           ...(options.delay ? ['ping -n 6 127.0.0.1 > nul'] : []),
+            'echo Working directory: %CD%',
+            ...(options.delay ? ['ping -n 6 127.0.0.1 > nul'] : []),
             `exit /b ${options.exitCode ?? 0}`
         ]
         : [
@@ -31,6 +32,7 @@ async function createFakeMaven(options: FakeMavenOptions = {}): Promise<{ direct
             "printf '%s\\n' 'Apache Maven 3.9.16'",
             'printf "Arguments: %s\\n" "$*"',
             "printf '%s\\n' 'Fake Maven diagnostic' >&2",
+            'printf "Working directory: %s\\n" "$PWD"',
             ...(options.delay ? ['sleep 5'] : []),
             `exit ${options.exitCode ?? 0}`
         ];
@@ -57,7 +59,7 @@ suite('Maven Runner', () => {
             const result = await runMavenVersion(environment);
 
             assert.match(result.stdout, /Apache Maven 3\.9\.16/);
-            assert.match(result.stdout, /Arguments: -version/);
+            assert.match(result.stdout, /Arguments: "?-version"?/);
             assert.match(result.stderr, /Fake Maven diagnostic/);
         } finally {
             await rm(directory, { recursive: true, force: true });
@@ -133,6 +135,24 @@ suite('Maven Runner', () => {
                     return true;
                 }
             );
+        } finally {
+            await rm(directory, { recursive: true, force: true });
+        }
+    });
+
+    test('runs Maven with supplied arguments and working directory', async () => {
+        const { directory, executable } = await createFakeMaven();
+
+        try {
+            const environment: MavenEnvironment = {
+                source: 'global',
+                executable
+            };
+
+            const result = await runMavenCommand(environment, ['help:effective-pom', '-Dverbose'], { cwd: directory });
+
+            assert.match(result.stdout, /Arguments: "?help:effective-pom"? "?-Dverbose"?/);
+            assert.ok(result.stdout.toLowerCase().includes(`working directory: ${directory}`.toLowerCase()));
         } finally {
             await rm(directory, { recursive: true, force: true });
         }

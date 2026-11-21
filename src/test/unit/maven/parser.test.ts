@@ -205,4 +205,86 @@ suite('Maven POM Parser', () => {
         assert.strictEqual(project.dependencies[0].classifier, 'tests');
     });
 
+
+    test('extracts effective dependency versions from an Effective POM', () => {
+        const effectivePomText = `<?xml version="1.0" encoding="UTF-8"?>
+        <project xmlns="http://maven.apache.org/POM/4.0.0">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>com.example</groupId>
+            <artifactId>dependency-advisor-demo</artifactId>
+            <version>1.0-SNAPSHOT</version>
+
+            <dependencyManagement>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-starter-webmvc</artifactId>
+                        <version>4.1.2</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>org.apache.commons</groupId>
+                        <artifactId>commons-lang3</artifactId>
+                        <version>3.17.0</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>org.junit.jupiter</groupId>
+                        <artifactId>junit-jupiter</artifactId>
+                        <version>5.12.2</version>
+                        <scope>test</scope>
+                    </dependency>
+                </dependencies>
+            </dependencyManagement>
+
+            <dependencies>
+                <dependency>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-webmvc</artifactId>
+                    <version>4.1.2</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-lang3</artifactId>
+                    <version>3.18.0</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.junit.jupiter</groupId>
+                    <artifactId>junit-jupiter</artifactId>
+                    <version>5.12.2</version>
+                    <scope>test</scope>
+                </dependency>
+                <dependency>
+                    <groupId>com.openai</groupId>
+                    <artifactId>openai-java</artifactId>
+                    <version>4.94.0</version>
+                </dependency>
+                <dependency>
+                    <groupId>com.google.guava</groupId>
+                    <artifactId>guava</artifactId>
+                    <version>33.4.0-jre</version>
+                    <scope>compile</scope>
+                </dependency>
+            </dependencies>
+        </project>`;
+
+        const project = parseMavenPom(effectivePomText);
+
+        assert.equal(project.artifactId, 'dependency-advisor-demo');
+        assert.equal(project.dependencies.length, 5);
+        assert.equal(project.managedDependencies.length, 3);
+
+        assert.equal(project.dependencies[0].artifactId, 'spring-boot-starter-webmvc');
+        assert.equal(project.dependencies[0].version, '4.1.2');
+
+        assert.equal(project.dependencies[1].artifactId, 'commons-lang3');
+        assert.equal(project.dependencies[1].version, '3.18.0');
+
+        assert.equal(project.dependencies[2].artifactId, 'junit-jupiter');
+        assert.equal(project.dependencies[2].version, '5.12.2');
+
+        assert.equal(project.dependencies[3].artifactId, 'openai-java');
+        assert.equal(project.dependencies[3].version, '4.94.0');
+
+        assert.equal(project.dependencies[4].artifactId, 'guava');
+        assert.equal(project.dependencies[4].version, '33.4.0-jre');
+    });
 });
