@@ -1,11 +1,19 @@
-
 import * as vscode from 'vscode';
 import * as path from 'node:path';
+import type { MavenDependencyTreeNode } from './models/maven';
 import { parseMavenPom } from './maven/parser';
 import { analyzeMavenDependencies, findManagedDependency } from './maven/dependency-management';
 import { findMavenEnvironment } from './maven/maven-environment';
 import { MavenExecutionError, runMavenVersion } from './maven/maven-runner';
 import { generateEffectivePom } from './maven/effective-pom';
+import { generateMavenDependencyTree } from './maven/dependency-tree';
+
+function countDependencyTreeEntries(node: MavenDependencyTreeNode): number {
+    return (node.children ?? []).reduce(
+        (total, child) => total + 1 + countDependencyTreeEntries(child),
+        0
+    );
+}
 
 export function activate(context: vscode.ExtensionContext): void {
     console.log('Dependency Advisor is now active.');
@@ -182,9 +190,78 @@ export function activate(context: vscode.ExtensionContext): void {
                         } else {
                             outputChannel.appendLine('Effective POM: skipped by user.');
                         }
+
+                        const dependencyTreeApproval = await vscode.window.showWarningMessage(
+                            `Dependency Advisor wants to generate the resolved Maven dependency tree for:\n\n${pomFile.fsPath}\n\nThis may download the Maven Dependency Plugin and resolve project dependencies using configured repositories. Only continue if you trust this project.`,
+                            { modal: true },
+                            'Generate Dependency Tree',
+                            'Skip'
+                        );
+
+                        if (dependencyTreeApproval === 'Generate Dependency Tree') {
+                            try {
+                                const dependencyTreeResult = await generateMavenDependencyTree(
+                                    mavenEnvironment,
+                                    projectDirectory
+                                );
+
+                                const dependencyTree = dependencyTreeResult.tree;
+                                const directDependencies = dependencyTree.children ?? [];
+                                const totalDependencyEntries = countDependencyTreeEntries(dependencyTree);
+                                const transitiveDependencyEntries = totalDependencyEntries - directDependencies.length;
+
+                                outputChannel.appendLine('Dependency tree: generated successfully.');
+                                outputChannel.appendLine(
+                                    `Resolved project: ${dependencyTree.groupId}:${dependencyTree.artifactId}:${dependencyTree.version ?? '(no version)'}`
+                                );
+                                outputChannel.appendLine(`Direct dependency entries: ${directDependencies.length}`);
+                                outputChannel.appendLine(`Transitive dependency entries: ${transitiveDependencyEntries}`);
+                                outputChannel.appendLine(`Total dependency entries: ${totalDependencyEntries}`);
+
+                                outputChannel.appendLine('Resolved direct dependencies:');
+
+                                for (const dependency of directDependencies) {
+                                    outputChannel.appendLine(`${dependency.groupId}:${dependency.artifactId}:${dependency.version ?? '(no version)'} [${dependency.scope || 'scope not reported'}]`);
+                                }
+
+                                if (dependencyTreeResult.stdout.trim()) {
+                                    outputChannel.appendLine('Maven dependency tree output:');
+                                    outputChannel.appendLine(dependencyTreeResult.stdout.trimEnd());
+                                }
+
+                                if (dependencyTreeResult.stderr.trim()) {
+                                    outputChannel.appendLine('Maven dependency tree diagnostics:');
+                                    outputChannel.appendLine(dependencyTreeResult.stderr.trimEnd());
+                                }
+                            } catch (error: unknown) {
+                                outputChannel.appendLine('Dependency tree generation: failed.');
+                                outputChannel.appendLine(`Error: ${error instanceof Error ? error.message : String(error)}`);
+
+                                if (error instanceof MavenExecutionError) {
+                                    outputChannel.appendLine(`Exit code: ${error.exitCode ?? '(not available)'}`);
+
+                                    if (error.timedOut) {
+                                        outputChannel.appendLine('Reason: Dependency tree generation timed out.');
+                                    }
+
+                                    if (error.stdout.trim()) {
+                                        outputChannel.appendLine('Output before failure:');
+                                        outputChannel.appendLine(error.stdout.trimEnd());
+                                    }
+
+                                    if (error.stderr.trim()) {
+                                        outputChannel.appendLine('Diagnostic output:');
+                                        outputChannel.appendLine(error.stderr.trimEnd());
+                                    }
+                                }
+                            }
+                        } else {
+                            outputChannel.appendLine('Dependency tree: skipped by user.');
+                        }
                     } else {
                         outputChannel.appendLine('Maven environment: not found.');
                         outputChannel.appendLine('Effective POM: unavailable because Maven was not found.');
+                        outputChannel.appendLine('Dependency tree: unavailable because Maven was not found.');
                     }
 
                     const dependenciesForAnalysis = mavenProject.dependencies.map((dependency) => {
